@@ -2,19 +2,25 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-pub fn parse_link_end<'a>(
-    state: &mut ::State<'a>,
-    configuration: &::Configuration,
+use crate::configuration::Namespace;
+use crate::state::{State};
+use crate::{Warning, Node, Configuration, WarningMessage};
+use crate::state::OpenNodeType;
+use crate::state::OpenNode;
+
+pub async fn parse_link_end<'a>(
+    state: &mut State<'a>,
+    configuration: &Configuration,
     start_position: usize,
-    nodes: Vec<::Node<'a>>,
-    namespace: Option<::Namespace>,
+    nodes: Vec<Node<'a>>,
+    namespace: Option<Namespace>,
     target: &'a str,
 ) {
-    let inner_end_position = state.skip_whitespace_backwards(state.scan_position);
-    state.flush(inner_end_position);
+    let inner_end_position = state.skip_whitespace_backwards(state.scan_position).await;
+    state.flush(inner_end_position).await;
     state.scan_position += 2;
     state.flushed_position = state.scan_position;
-    let mut text = ::std::mem::replace(&mut state.nodes, nodes);
+    let mut text = std::mem::replace(&mut state.nodes, nodes);
     let end = state.scan_position;
     let start = start_position;
     state.nodes.push(match namespace {
@@ -27,26 +33,26 @@ pub fn parse_link_end<'a>(
                 trail_end_position += character.len_utf8();
             }
             if trail_end_position > end {
-                text.push(::Node::Text {
+                text.push(Node::Text {
                     end: trail_end_position,
                     start: end,
                     value: &state.wiki_text[end..trail_end_position],
                 });
             }
-            ::Node::Link {
+            Node::Link {
                 end: trail_end_position,
                 start,
                 target,
                 text,
             }
         }
-        Some(::Namespace::Category) => ::Node::Category {
+        Some(Namespace::Category) => Node::Category {
             end,
             ordinal: text,
             start,
             target,
         },
-        Some(::Namespace::File) => ::Node::Image {
+        Some(Namespace::File) => Node::Image {
             end,
             start,
             target,
@@ -55,25 +61,25 @@ pub fn parse_link_end<'a>(
     });
 }
 
-pub fn parse_link_start(state: &mut ::State, configuration: &::Configuration) {
+pub async fn parse_link_start(state: &mut State<'_>, configuration: &Configuration) {
     if match state.stack.last() {
-        Some(::OpenNode {
-            type_: ::OpenNodeType::Link { namespace, .. },
+        Some(OpenNode {
+            type_: OpenNodeType::Link { namespace, .. },
             ..
-        }) => *namespace != Some(::Namespace::File),
+        }) => *namespace != Some(Namespace::File),
         _ => false,
     } {
         let open_node = state.stack.pop().unwrap();
-        state.warnings.push(::Warning {
+        state.warnings.push(Warning {
             end: state.scan_position,
-            message: ::WarningMessage::InvalidLinkSyntax,
+            message: WarningMessage::InvalidLinkSyntax,
             start: open_node.start,
         });
         state.rewind(open_node.nodes, open_node.start);
         return;
     }
     let mut target_end_position;
-    let target_start_position = state.skip_whitespace_forwards(state.scan_position + 2);
+    let target_start_position = state.skip_whitespace_forwards(state.scan_position + 2).await;
     let namespace = match configuration
         .namespaces
         .find(&state.wiki_text[target_start_position..])
@@ -88,9 +94,9 @@ pub fn parse_link_start(state: &mut ::State, configuration: &::Configuration) {
         }
     };
     loop {
-        match state.get_byte(target_end_position) {
+        match state.get_byte(target_end_position).await {
             None | Some(b'\n') | Some(b'[') | Some(b'{') | Some(b'}') => {
-                parse_unexpected_end(state, target_end_position);
+                parse_unexpected_end(state, target_end_position).await;
                 break;
             }
             Some(b']') => {
@@ -100,17 +106,17 @@ pub fn parse_link_start(state: &mut ::State, configuration: &::Configuration) {
                     target_start_position,
                     target_end_position,
                     namespace,
-                );
+                ).await;
                 break;
             }
             Some(b'|') => {
                 state.push_open_node(
-                    ::OpenNodeType::Link {
+                    OpenNodeType::Link {
                         namespace,
                         target: &state.wiki_text[target_start_position..target_end_position],
                     },
                     target_end_position + 1,
-                );
+                ).await;
                 break;
             }
             _ => target_end_position += 1,
@@ -118,32 +124,32 @@ pub fn parse_link_start(state: &mut ::State, configuration: &::Configuration) {
     }
 }
 
-fn parse_end(
-    state: &mut ::State,
-    configuration: &::Configuration,
+async fn parse_end(
+    state: &mut State<'_>,
+    configuration: &Configuration,
     target_start_position: usize,
     target_end_position: usize,
-    namespace: Option<::Namespace>,
+    namespace: Option<Namespace>,
 ) {
-    if state.get_byte(target_end_position + 1) != Some(b']') {
-        parse_unexpected_end(state, target_end_position);
+    if state.get_byte(target_end_position + 1).await != Some(b']') {
+        parse_unexpected_end(state, target_end_position).await;
         return;
     }
     let start_position = state.scan_position;
-    state.flush(start_position);
+    state.flush(start_position).await;
     let trail_start_position = target_end_position + 2;
     let mut trail_end_position = trail_start_position;
     match namespace {
-        Some(::Namespace::Category) => {
-            state.nodes.push(::Node::Category {
+        Some(Namespace::Category) => {
+            state.nodes.push(Node::Category {
                 end: trail_end_position,
                 ordinal: vec![],
                 start: state.scan_position,
                 target: state.wiki_text[target_start_position..target_end_position].trim_end(),
             });
         }
-        Some(::Namespace::File) => {
-            state.nodes.push(::Node::Image {
+        Some(Namespace::File) => {
+            state.nodes.push(Node::Image {
                 end: trail_end_position,
                 start: state.scan_position,
                 target: state.wiki_text[target_start_position..target_end_position].trim_end(),
@@ -157,7 +163,7 @@ fn parse_end(
                 }
                 trail_end_position += character.len_utf8();
             }
-            let target_text = ::Node::Text {
+            let target_text = Node::Text {
                 end: target_end_position,
                 start: target_start_position,
                 value: &state.wiki_text[target_start_position..target_end_position],
@@ -165,7 +171,7 @@ fn parse_end(
             let text = if trail_end_position > trail_start_position {
                 vec![
                     target_text,
-                    ::Node::Text {
+                    Node::Text {
                         end: trail_end_position,
                         start: trail_start_position,
                         value: &state.wiki_text[trail_start_position..trail_end_position],
@@ -174,7 +180,7 @@ fn parse_end(
             } else {
                 vec![target_text]
             };
-            state.nodes.push(::Node::Link {
+            state.nodes.push(Node::Link {
                 end: trail_end_position,
                 start: state.scan_position,
                 target: &state.wiki_text[target_start_position..target_end_position].trim_end(),
@@ -186,10 +192,10 @@ fn parse_end(
     state.scan_position = trail_end_position;
 }
 
-fn parse_unexpected_end(state: &mut ::State, target_end_position: usize) {
-    state.warnings.push(::Warning {
+async fn parse_unexpected_end(state: &mut State<'_>, target_end_position: usize) {
+    state.warnings.push(Warning {
         end: target_end_position,
-        message: ::WarningMessage::InvalidLinkSyntax,
+        message: WarningMessage::InvalidLinkSyntax,
         start: state.scan_position,
     });
     state.scan_position += 1;

@@ -2,7 +2,7 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-use case_folding_simple::CASE_FOLDING_SIMPLE;
+use crate::case_folding_simple::CASE_FOLDING_SIMPLE;
 
 struct Character<T> {
     character: u8,

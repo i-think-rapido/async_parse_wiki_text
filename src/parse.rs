@@ -2,9 +2,14 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use crate::state::{State, OpenNode};
+use crate::state::OpenNodeType;
+use crate::{Warning, Output, Configuration, WarningMessage};
+use crate::{redirect, line, template, table, magic_word, link, character_entity, bold_italic, external_link, comment, tag};
+
 #[must_use]
-pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Output<'a> {
-    let mut state = ::State {
+pub async fn parse<'a>(configuration: &Configuration, wiki_text: &'a str) -> Output<'a> {
+    let mut state = State {
         flushed_position: 0,
         nodes: vec![],
         scan_position: 0,
@@ -16,12 +21,12 @@ pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Outpu
         let mut has_line_break = false;
         let mut position = 0;
         loop {
-            match state.get_byte(position) {
+            match state.get_byte(position).await {
                 Some(b'\n') => {
                     if has_line_break {
-                        state.warnings.push(::Warning {
+                        state.warnings.push(Warning {
                             end: position + 1,
-                            message: ::WarningMessage::RepeatedEmptyLine,
+                            message: WarningMessage::RepeatedEmptyLine,
                             start: position,
                         });
                     }
@@ -32,25 +37,25 @@ pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Outpu
                 }
                 Some(b' ') => position += 1,
                 Some(b'#') => {
-                    ::redirect::parse_redirect(&mut state, configuration, position);
+                    redirect::parse_redirect(&mut state, configuration, position).await;
                     break;
                 }
                 _ => break,
             }
         }
     }
-    ::line::parse_beginning_of_line(&mut state, None);
+    line::parse_beginning_of_line(&mut state, None).await;
     loop {
-        match state.get_byte(state.scan_position) {
+        match state.get_byte(state.scan_position).await {
             None => {
-                ::line::parse_end_of_line(&mut state);
+                line::parse_end_of_line(&mut state).await;
                 if state.scan_position < state.wiki_text.len() {
                     continue;
                 }
-                if let Some(::OpenNode { nodes, start, .. }) = state.stack.pop() {
-                    state.warnings.push(::Warning {
+                if let Some(OpenNode { nodes, start, .. }) = state.stack.pop() {
+                    state.warnings.push(Warning {
                         end: state.scan_position,
-                        message: ::WarningMessage::MissingEndTagRewinding,
+                        message: WarningMessage::MissingEndTagRewinding,
                         start,
                     });
                     state.rewind(nodes, start);
@@ -63,71 +68,71 @@ pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Outpu
             | Some(17) | Some(18) | Some(19) | Some(20) | Some(21) | Some(22) | Some(23)
             | Some(24) | Some(25) | Some(26) | Some(27) | Some(28) | Some(29) | Some(30)
             | Some(31) | Some(127) => {
-                state.warnings.push(::Warning {
+                state.warnings.push(Warning {
                     end: state.scan_position + 1,
-                    message: ::WarningMessage::InvalidCharacter,
+                    message: WarningMessage::InvalidCharacter,
                     start: state.scan_position,
                 });
                 state.scan_position += 1;
             }
             Some(b'\n') => {
-                ::line::parse_end_of_line(&mut state);
+                line::parse_end_of_line(&mut state).await;
             }
-            Some(b'!') if state.get_byte(state.scan_position + 1) == Some(b'!') => {
-                ::table::parse_heading_cell(&mut state);
+            Some(b'!') if state.get_byte(state.scan_position + 1) .await== Some(b'!') => {
+                table::parse_heading_cell(&mut state).await;
             }
-            Some(b'&') => ::character_entity::parse_character_entity(&mut state, configuration),
-            Some(b'\'') => if state.get_byte(state.scan_position + 1) == Some(b'\'') {
-                ::bold_italic::parse_bold_italic(&mut state);
+            Some(b'&') => character_entity::parse_character_entity(&mut state, configuration).await,
+            Some(b'\'') => if state.get_byte(state.scan_position + 1) .await== Some(b'\'') {
+                bold_italic::parse_bold_italic(&mut state).await;
             } else {
                 state.scan_position += 1;
             },
-            Some(b'<') => match state.get_byte(state.scan_position + 1) {
+            Some(b'<') => match state.get_byte(state.scan_position + 1) .await{
                 Some(b'!')
-                    if state.get_byte(state.scan_position + 2) == Some(b'-')
-                        && state.get_byte(state.scan_position + 3) == Some(b'-') =>
+                    if state.get_byte(state.scan_position + 2).await == Some(b'-')
+                        && state.get_byte(state.scan_position + 3).await == Some(b'-') =>
                 {
-                    ::comment::parse_comment(&mut state)
+                    comment::parse_comment(&mut state).await
                 }
-                Some(b'/') => ::tag::parse_end_tag(&mut state, configuration),
-                _ => ::tag::parse_start_tag(&mut state, configuration),
+                Some(b'/') => tag::parse_end_tag(&mut state, configuration).await,
+                _ => tag::parse_start_tag(&mut state, configuration).await,
             },
             Some(b'=') => {
-                ::template::parse_parameter_name_end(&mut state);
+                template::parse_parameter_name_end(&mut state).await;
             }
-            Some(b'[') => if state.get_byte(state.scan_position + 1) == Some(b'[') {
-                ::link::parse_link_start(&mut state, configuration);
+            Some(b'[') => if state.get_byte(state.scan_position + 1) .await== Some(b'[') {
+                link::parse_link_start(&mut state, configuration).await;
             } else {
-                ::external_link::parse_external_link_start(&mut state, configuration);
+                external_link::parse_external_link_start(&mut state, configuration).await;
             },
             Some(b']') => match state.stack.pop() {
                 None => state.scan_position += 1,
-                Some(::OpenNode {
+                Some(OpenNode {
                     nodes,
                     start,
-                    type_: ::OpenNodeType::ExternalLink,
+                    type_: OpenNodeType::ExternalLink,
                 }) => {
-                    ::external_link::parse_external_link_end(&mut state, start, nodes);
+                    external_link::parse_external_link_end(&mut state, start, nodes).await;
                 }
-                Some(::OpenNode {
+                Some(OpenNode {
                     nodes,
                     start,
-                    type_: ::OpenNodeType::Link { namespace, target },
-                }) => if state.get_byte(state.scan_position + 1) == Some(b']') {
-                    ::link::parse_link_end(
+                    type_: OpenNodeType::Link { namespace, target },
+                }) => if state.get_byte(state.scan_position + 1) .await== Some(b']') {
+                    link::parse_link_end(
                         &mut state,
                         &configuration,
                         start,
                         nodes,
                         namespace,
                         target,
-                    );
+                    ).await;
                 } else {
                     state.scan_position += 1;
-                    state.stack.push(::OpenNode {
+                    state.stack.push(OpenNode {
                         nodes,
                         start,
-                        type_: ::OpenNodeType::Link { namespace, target },
+                        type_: OpenNodeType::Link { namespace, target },
                     });
                 },
                 Some(open_node) => {
@@ -135,39 +140,39 @@ pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Outpu
                     state.stack.push(open_node);
                 }
             },
-            Some(b'_') => if state.get_byte(state.scan_position + 1) == Some(b'_') {
-                ::magic_word::parse_magic_word(&mut state, configuration);
+            Some(b'_') => if state.get_byte(state.scan_position + 1) .await== Some(b'_') {
+                magic_word::parse_magic_word(&mut state, configuration).await;
             } else {
                 state.scan_position += 1;
             },
-            Some(b'{') => if state.get_byte(state.scan_position + 1) == Some(b'{') {
-                ::template::parse_template_start(&mut state);
+            Some(b'{') => if state.get_byte(state.scan_position + 1) .await== Some(b'{') {
+                template::parse_template_start(&mut state).await;
             } else {
                 state.scan_position += 1;
             },
             Some(b'|') => match state.stack.last_mut() {
-                Some(::OpenNode {
-                    type_: ::OpenNodeType::Parameter { default: None, .. },
+                Some(OpenNode {
+                    type_: OpenNodeType::Parameter { default: None, .. },
                     ..
                 }) => {
-                    ::template::parse_parameter_separator(&mut state);
+                    template::parse_parameter_separator(&mut state).await;
                 }
-                Some(::OpenNode {
-                    type_: ::OpenNodeType::Table(..),
+                Some(OpenNode {
+                    type_: OpenNodeType::Table(..),
                     ..
                 }) => {
-                    ::table::parse_inline_token(&mut state);
+                    table::parse_inline_token(&mut state).await;
                 }
-                Some(::OpenNode {
-                    type_: ::OpenNodeType::Template { .. },
+                Some(OpenNode {
+                    type_: OpenNodeType::Template { .. },
                     ..
                 }) => {
-                    ::template::parse_template_separator(&mut state);
+                    template::parse_template_separator(&mut state).await;
                 }
                 _ => state.scan_position += 1,
             },
-            Some(b'}') => if state.get_byte(state.scan_position + 1) == Some(b'}') {
-                ::template::parse_template_end(&mut state);
+            Some(b'}') => if state.get_byte(state.scan_position + 1) .await== Some(b'}') {
+                template::parse_template_end(&mut state).await;
             } else {
                 state.scan_position += 1;
             },
@@ -176,9 +181,9 @@ pub fn parse<'a>(configuration: &::Configuration, wiki_text: &'a str) -> ::Outpu
             }
         }
     }
-    let end_position = state.skip_whitespace_backwards(wiki_text.len());
-    state.flush(end_position);
-    ::Output {
+    let end_position = state.skip_whitespace_backwards(wiki_text.len()).await;
+    state.flush(end_position).await;
+    Output {
         nodes: state.nodes,
         warnings: state.warnings,
     }

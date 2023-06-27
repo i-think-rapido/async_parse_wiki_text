@@ -7,10 +7,11 @@ extern crate parse_wiki_text;
 mod test;
 mod test_cases;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut args = std::env::args();
     match args.nth(1) {
-        None => return test::run_test(&Default::default()),
+        None => return test::run_test(&Default::default()).await,
         Some(command) => match &command as _ {
             "file" => if let Some(path) = args.next() {
                 if args.next().is_none() {
@@ -22,7 +23,7 @@ fn main() {
                         Ok(file_contents) => {
                             println!(
                                 "{:#?}",
-                                parse_wiki_text::Configuration::default().parse(&file_contents)
+                                parse_wiki_text::Configuration::default().parse(&file_contents).await
                             );
                             return;
                         }
@@ -34,7 +35,7 @@ fn main() {
                     println!(
                         "{:#?}",
                         parse_wiki_text::Configuration::default()
-                            .parse(&wiki_text.replace("\\t", "\t").replace("\\n", "\n"))
+                            .parse(&wiki_text.replace("\\t", "\t").replace("\\n", "\n")).await
                     );
                     return;
                 }

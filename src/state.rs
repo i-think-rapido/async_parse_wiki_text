@@ -2,60 +2,64 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use async_recursion::async_recursion;
+use std::borrow::Cow;
+use crate::{Node, TableCaption, TableRow, ListItem, Parameter, Warning, DefinitionListItem, configuration::Namespace};
+
 pub struct OpenNode<'a> {
-    pub nodes: Vec<::Node<'a>>,
+    pub nodes: Vec<Node<'a>>,
     pub start: usize,
     pub type_: OpenNodeType<'a>,
 }
 
 pub enum OpenNodeType<'a> {
     DefinitionList {
-        items: Vec<::DefinitionListItem<'a>>,
+        items: Vec<DefinitionListItem<'a>>,
     },
     ExternalLink,
     Heading {
         level: u8,
     },
     Link {
-        namespace: Option<::Namespace>,
+        namespace: Option<Namespace>,
         target: &'a str,
     },
     OrderedList {
-        items: Vec<::ListItem<'a>>,
+        items: Vec<ListItem<'a>>,
     },
     Parameter {
-        default: Option<Vec<::Node<'a>>>,
-        name: Option<Vec<::Node<'a>>>,
+        default: Option<Vec<Node<'a>>>,
+        name: Option<Vec<Node<'a>>>,
     },
     Preformatted,
     Table(Table<'a>),
     Tag {
-        name: ::Cow<'a, str>,
+        name: Cow<'a, str>,
     },
     Template {
-        name: Option<Vec<::Node<'a>>>,
-        parameters: Vec<::Parameter<'a>>,
+        name: Option<Vec<Node<'a>>>,
+        parameters: Vec<Parameter<'a>>,
     },
     UnorderedList {
-        items: Vec<::ListItem<'a>>,
+        items: Vec<ListItem<'a>>,
     },
 }
 
 pub struct State<'a> {
     pub flushed_position: usize,
-    pub nodes: Vec<::Node<'a>>,
+    pub nodes: Vec<Node<'a>>,
     pub scan_position: usize,
     pub stack: Vec<OpenNode<'a>>,
-    pub warnings: Vec<::Warning>,
+    pub warnings: Vec<Warning>,
     pub wiki_text: &'a str,
 }
 
 pub struct Table<'a> {
-    pub attributes: Vec<::Node<'a>>,
-    pub before: Vec<::Node<'a>>,
-    pub captions: Vec<::TableCaption<'a>>,
-    pub child_element_attributes: Option<Vec<::Node<'a>>>,
-    pub rows: Vec<::TableRow<'a>>,
+    pub attributes: Vec<Node<'a>>,
+    pub before: Vec<Node<'a>>,
+    pub captions: Vec<TableCaption<'a>>,
+    pub child_element_attributes: Option<Vec<Node<'a>>>,
+    pub rows: Vec<TableRow<'a>>,
     pub start: usize,
     pub state: TableState,
 }
@@ -73,24 +77,24 @@ pub enum TableState {
 }
 
 impl<'a> State<'a> {
-    pub fn flush(&mut self, end_position: usize) {
+    pub async fn flush(&mut self, end_position: usize) {
         flush(
             &mut self.nodes,
             self.flushed_position,
             end_position,
             self.wiki_text,
-        );
+        ).await;
     }
 
-    pub fn get_byte(&self, position: usize) -> Option<u8> {
+    pub async fn get_byte(&self, position: usize) -> Option<u8> {
         self.wiki_text.as_bytes().get(position).cloned()
     }
 
-    pub fn push_open_node(&mut self, type_: OpenNodeType<'a>, inner_start_position: usize) {
+    pub async fn push_open_node(&mut self, type_: OpenNodeType<'a>, inner_start_position: usize) {
         let scan_position = self.scan_position;
-        self.flush(scan_position);
+        self.flush(scan_position).await;
         self.stack.push(OpenNode {
-            nodes: ::std::mem::replace(&mut self.nodes, vec![]),
+            nodes: std::mem::replace(&mut self.nodes, vec![]),
             start: scan_position,
             type_,
         });
@@ -98,11 +102,11 @@ impl<'a> State<'a> {
         self.flushed_position = inner_start_position;
     }
 
-    pub fn rewind(&mut self, nodes: Vec<::Node<'a>>, position: usize) {
+    pub fn rewind(&mut self, nodes: Vec<Node<'a>>, position: usize) {
         self.scan_position = position + 1;
         self.nodes = nodes;
         if let Some(position_before_text) = match self.nodes.last() {
-            Some(::Node::Text { start, .. }) => Some(*start),
+            Some(Node::Text { start, .. }) => Some(*start),
             _ => None,
         } {
             self.nodes.pop();
@@ -112,38 +116,39 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn skip_empty_lines(&mut self) {
+    #[async_recursion]
+    pub async fn skip_empty_lines(&mut self) {
         match self.stack.last() {
             Some(OpenNode {
                 type_: OpenNodeType::Table { .. },
                 ..
             }) => {
                 self.scan_position -= 1;
-                ::table::parse_table_end_of_line(self, false);
+                crate::table::parse_table_end_of_line(self, false).await;
             }
             _ => {
-                ::line::parse_beginning_of_line(self, None);
+                crate::line::parse_beginning_of_line(self, None).await;
             }
         }
     }
 
-    pub fn skip_whitespace_backwards(&self, position: usize) -> usize {
-        skip_whitespace_backwards(self.wiki_text, position)
+    pub async fn skip_whitespace_backwards(&self, position: usize) -> usize {
+        skip_whitespace_backwards(self.wiki_text, position).await
     }
 
-    pub fn skip_whitespace_forwards(&self, position: usize) -> usize {
-        skip_whitespace_forwards(self.wiki_text, position)
+    pub async fn skip_whitespace_forwards(&self, position: usize) -> usize {
+        skip_whitespace_forwards(self.wiki_text, position).await
     }
 }
 
-pub fn flush<'a>(
-    nodes: &mut Vec<::Node<'a>>,
+pub async fn flush<'a>(
+    nodes: &mut Vec<Node<'a>>,
     flushed_position: usize,
     end_position: usize,
     wiki_text: &'a str,
 ) {
     if end_position > flushed_position {
-        nodes.push(::Node::Text {
+        nodes.push(Node::Text {
             end: end_position,
             start: flushed_position,
             value: &wiki_text[flushed_position..end_position],
@@ -151,7 +156,7 @@ pub fn flush<'a>(
     }
 }
 
-pub fn skip_whitespace_backwards(wiki_text: &str, mut position: usize) -> usize {
+pub async fn skip_whitespace_backwards(wiki_text: &str, mut position: usize) -> usize {
     while position > 0 && match wiki_text.as_bytes()[position - 1] {
         b'\t' | b'\n' | b' ' => true,
         _ => false,
@@ -161,7 +166,7 @@ pub fn skip_whitespace_backwards(wiki_text: &str, mut position: usize) -> usize 
     position
 }
 
-pub fn skip_whitespace_forwards(wiki_text: &str, mut position: usize) -> usize {
+pub async fn skip_whitespace_forwards(wiki_text: &str, mut position: usize) -> usize {
     while match wiki_text.as_bytes().get(position).cloned() {
         Some(b'\t') | Some(b'\n') | Some(b' ') => true,
         _ => false,

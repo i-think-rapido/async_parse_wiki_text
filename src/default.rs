@@ -2,8 +2,10 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-pub fn create_configuration() -> ::Configuration {
-    ::Configuration::new(&::ConfigurationSource {
+use crate::{Configuration, ConfigurationSource};
+
+pub fn create_configuration() -> Configuration {
+    Configuration::new(&ConfigurationSource {
         category_namespaces: &["category"],
         extension_tags: &[
             "categorytree",

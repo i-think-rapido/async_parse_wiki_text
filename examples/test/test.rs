@@ -2,9 +2,11 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+#[path = "test_cases.rs"]
+mod test_cases;
 use test_cases::TEST_CASES;
 
-pub fn run_test(configuration: &::parse_wiki_text::Configuration) {
+pub async fn run_test(configuration: &parse_wiki_text::Configuration) {
     let mut output = concat!(
         "<title>Parse Wiki Text test cases</title>",
         "<style>",
@@ -54,7 +56,7 @@ pub fn run_test(configuration: &::parse_wiki_text::Configuration) {
                 }
                 Ok(result) => {
                     output += "</pre><hr><pre>";
-                    output += &format!("{:#?}", result)
+                    output += &format!("{:#?}", result.await)
                         .replace("&", "&amp;")
                         .replace("<", "&lt;");
                     output += "</pre></div>";
