@@ -41,10 +41,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
         }
     }
     if let Some(term_level) = term_level {
-        if level < state.stack.len() || match state.get_byte(state.scan_position).await {
-            Some(b'#') | Some(b'*') | Some(b':') | Some(b';') => true,
-            _ => false,
-        } {
+        if level < state.stack.len() || matches!(state.get_byte(state.scan_position).await, Some(b'#') | Some(b'*') | Some(b':') | Some(b';')) {
             state.scan_position -= level - term_level;
             level = term_level;
             state.warnings.push(Warning {
@@ -114,7 +111,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
                     let item_index = items.len() - 1;
                     let last_item = &mut items[item_index];
                     last_item.end = item_end_position;
-                    last_item.nodes = std::mem::replace(&mut state.nodes, vec![]);
+                    last_item.nodes = std::mem::take(&mut state.nodes);
                 }
                 items.push(DefinitionListItem {
                     end: 0,
@@ -140,7 +137,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
                     let item_index = items.len() - 1;
                     let last_item = &mut items[item_index];
                     last_item.end = item_end_position;
-                    last_item.nodes = std::mem::replace(&mut state.nodes, vec![]);
+                    last_item.nodes = std::mem::take(&mut state.nodes);
                 };
                 items.push(ListItem {
                     end: 0,
@@ -156,7 +153,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
                     let item_index = items.len() - 1;
                     let last_item = &mut items[item_index];
                     last_item.end = item_end_position;
-                    last_item.nodes = std::mem::replace(&mut state.nodes, vec![]);
+                    last_item.nodes = std::mem::take(&mut state.nodes);
                 };
                 items.push(ListItem {
                     end: 0,
@@ -212,10 +209,7 @@ pub async fn parse_list_item_start(state: &mut State<'_>) -> bool {
 }
 
 pub async fn skip_spaces(state: &mut State<'_>) {
-    while match state.get_byte(state.scan_position).await {
-        Some(b'\t') | Some(b' ') => true,
-        _ => false,
-    } {
+    while matches!(state.get_byte(state.scan_position).await, Some(b'\t') | Some(b' ')) {
         state.scan_position += 1;
     }
     state.flushed_position = state.scan_position;

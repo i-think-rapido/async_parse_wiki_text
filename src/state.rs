@@ -94,7 +94,7 @@ impl<'a> State<'a> {
         let scan_position = self.scan_position;
         self.flush(scan_position).await;
         self.stack.push(OpenNode {
-            nodes: std::mem::replace(&mut self.nodes, vec![]),
+            nodes: std::mem::take(&mut self.nodes),
             start: scan_position,
             type_,
         });
@@ -157,20 +157,14 @@ pub async fn flush<'a>(
 }
 
 pub async fn skip_whitespace_backwards(wiki_text: &str, mut position: usize) -> usize {
-    while position > 0 && match wiki_text.as_bytes()[position - 1] {
-        b'\t' | b'\n' | b' ' => true,
-        _ => false,
-    } {
+    while position > 0 && matches!(wiki_text.as_bytes()[position - 1], b'\t' | b'\n' | b' ') {
         position -= 1;
     }
     position
 }
 
 pub async fn skip_whitespace_forwards(wiki_text: &str, mut position: usize) -> usize {
-    while match wiki_text.as_bytes().get(position).cloned() {
-        Some(b'\t') | Some(b'\n') | Some(b' ') => true,
-        _ => false,
-    } {
+    while matches!(wiki_text.as_bytes().get(position).cloned(), Some(b'\t') | Some(b'\n') | Some(b' ')) {
         position += 1;
     }
     position

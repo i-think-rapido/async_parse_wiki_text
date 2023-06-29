@@ -183,7 +183,7 @@ async fn parse_end(
             state.nodes.push(Node::Link {
                 end: trail_end_position,
                 start: state.scan_position,
-                target: &state.wiki_text[target_start_position..target_end_position].trim_end(),
+                target: state.wiki_text[target_start_position..target_end_position].trim_end(),
                 text,
             });
         }

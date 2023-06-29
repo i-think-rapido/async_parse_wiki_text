@@ -29,7 +29,7 @@ pub async fn parse_heading_cell(state: &mut State<'_>) {
         let row = table.rows.last_mut().unwrap();
         row.cells.push(TableCell {
             attributes: table.child_element_attributes.take(),
-            content: std::mem::replace(&mut state.nodes, vec![]),
+            content: std::mem::take(&mut state.nodes),
             end,
             start: table.start,
             type_: TableCellType::Heading,
@@ -153,12 +153,12 @@ async fn change_state(
             });
             table
                 .before
-                .append(&mut std::mem::replace(&mut state.nodes, vec![]));
+                .append(&mut std::mem::take(&mut state.nodes));
         }
         TableState::CaptionFirstLine | TableState::CaptionRemainder => {
             table.captions.push(TableCaption {
                 attributes: table.child_element_attributes.take(),
-                content: std::mem::replace(&mut state.nodes, vec![]),
+                content: std::mem::take(&mut state.nodes),
                 end,
                 start: table.start,
             });
@@ -175,7 +175,7 @@ async fn change_state(
             let row = table.rows.last_mut().unwrap();
             row.cells.push(TableCell {
                 attributes: table.child_element_attributes.take(),
-                content: std::mem::replace(&mut state.nodes, vec![]),
+                content: std::mem::take(&mut state.nodes),
                 end,
                 start: table.start,
                 type_: TableCellType::Ordinary,
@@ -194,7 +194,7 @@ async fn change_state(
             let row = table.rows.last_mut().unwrap();
             row.cells.push(TableCell {
                 attributes: table.child_element_attributes.take(),
-                content: std::mem::replace(&mut state.nodes, vec![]),
+                content: std::mem::take(&mut state.nodes),
                 end,
                 start: table.start,
                 type_: TableCellType::Heading,
@@ -203,14 +203,14 @@ async fn change_state(
         }
         TableState::Row => {
             table.rows.push(TableRow {
-                attributes: std::mem::replace(&mut state.nodes, vec![]),
+                attributes: std::mem::take(&mut state.nodes),
                 cells: vec![],
                 end,
                 start: table.start,
             });
         }
         TableState::TableAttributes => {
-            table.attributes = std::mem::replace(&mut state.nodes, vec![]);
+            table.attributes = std::mem::take(&mut state.nodes);
         }
     }
     table.start = position_before_token;
@@ -399,7 +399,7 @@ async fn parse_line_break(
                     crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await,
                     state.wiki_text,
                 ).await;
-                table.attributes = std::mem::replace(&mut state.nodes, vec![]);
+                table.attributes = std::mem::take(&mut state.nodes);
                 table.start = position_after_token;
                 table.state = TableState::Before;
                 state.flushed_position = position_after_token;
@@ -416,7 +416,7 @@ async fn parse_line_break(
                     state.wiki_text,
                 ).await;
                 table.rows.push(TableRow {
-                    attributes: std::mem::replace(&mut state.nodes, vec![]),
+                    attributes: std::mem::take(&mut state.nodes),
                     cells: vec![],
                     end: position_before_line_break,
                     start: table.start,
@@ -462,7 +462,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 ).await;
                 table.captions.push(TableCaption {
                     attributes: table.child_element_attributes.take(),
-                    content: std::mem::replace(&mut state.nodes, vec![]),
+                    content: std::mem::take(&mut state.nodes),
                     end,
                     start: table.start,
                 });
@@ -496,7 +496,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 let row = table.rows.last_mut().unwrap();
                 row.cells.push(TableCell {
                     attributes: table.child_element_attributes.take(),
-                    content: std::mem::replace(&mut state.nodes, vec![]),
+                    content: std::mem::take(&mut state.nodes),
                     end,
                     start: table.start,
                     type_: TableCellType::Ordinary,
@@ -532,7 +532,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 let row = table.rows.last_mut().unwrap();
                 row.cells.push(TableCell {
                     attributes: table.child_element_attributes.take(),
-                    content: std::mem::replace(&mut state.nodes, vec![]),
+                    content: std::mem::take(&mut state.nodes),
                     end,
                     start: table.start,
                     type_: TableCellType::Heading,
@@ -563,7 +563,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                     state.wiki_text,
                 ).await;
                 table.child_element_attributes =
-                    Some(std::mem::replace(&mut state.nodes, vec![]));
+                    Some(std::mem::take(&mut state.nodes));
                 state.scan_position = position_before_token + 1;
                 while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
                     match character {
@@ -589,11 +589,8 @@ pub async fn start_table(state: &mut State<'_>, position_before_line_break: Opti
     }
     state.flushed_position = state.scan_position;
     let mut position = state.scan_position + 2;
-    loop {
-        match state.get_byte(position).await {
-            Some(b'\t') | Some(b' ') => position += 1,
-            _ => break,
-        }
+    while let Some(b'\t') | Some(b' ') = state.get_byte(position).await {
+        position += 1;
     }
     state.push_open_node(
         OpenNodeType::Table(Table {
@@ -609,7 +606,7 @@ pub async fn start_table(state: &mut State<'_>, position_before_line_break: Opti
     ).await;
 }
 
-fn get_table<'a, 'b>(stack: &'a mut Vec<OpenNode<'b>>) -> &'a mut crate::state::Table<'b> {
+fn get_table<'a, 'b>(stack: &'a mut [OpenNode<'b>]) -> &'a mut crate::state::Table<'b> {
     match stack.last_mut() {
         Some(OpenNode {
             type_: OpenNodeType::Table(table),

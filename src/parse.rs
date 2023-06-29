@@ -121,7 +121,7 @@ pub async fn parse<'a>(configuration: &Configuration, wiki_text: &'a str) -> Out
                 }) => if state.get_byte(state.scan_position + 1) .await== Some(b']') {
                     link::parse_link_end(
                         &mut state,
-                        &configuration,
+                        configuration,
                         start,
                         nodes,
                         namespace,

@@ -31,7 +31,7 @@ pub async fn parse_parameter_name_end(state: &mut State<'_>) {
                 state.flushed_position =
                     crate::state::skip_whitespace_forwards(state.wiki_text, state.scan_position + 1).await;
                 state.scan_position = state.flushed_position;
-                *name = Some(std::mem::replace(&mut state.nodes, vec![]));
+                *name = Some(std::mem::take(&mut state.nodes));
                 return;
             }
         }
@@ -54,7 +54,7 @@ pub async fn parse_parameter_separator(state: &mut State<'_>) {
                     position,
                     state.wiki_text,
                 ).await;
-                *name = Some(std::mem::replace(&mut state.nodes, vec![]));
+                *name = Some(std::mem::take(&mut state.nodes));
             } else {
                 crate::state::flush(
                     &mut state.nodes,
@@ -62,7 +62,7 @@ pub async fn parse_parameter_separator(state: &mut State<'_>) {
                     state.scan_position,
                     state.wiki_text,
                 ).await;
-                *default = Some(std::mem::replace(&mut state.nodes, vec![]));
+                *default = Some(std::mem::take(&mut state.nodes));
                 state.warnings.push(Warning {
                     end: state.scan_position + 1,
                     message: WarningMessage::UselessTextInParameter,
@@ -180,12 +180,12 @@ pub async fn parse_template_separator(state: &mut State<'_>) {
                 crate::state::skip_whitespace_forwards(state.wiki_text, state.scan_position + 1).await;
             state.scan_position = state.flushed_position;
             if name.is_none() {
-                *name = Some(std::mem::replace(&mut state.nodes, vec![]));
+                *name = Some(std::mem::take(&mut state.nodes));
             } else {
                 let parameters_length = parameters.len();
                 let parameter = &mut parameters[parameters_length - 1];
                 parameter.end = position;
-                parameter.value = std::mem::replace(&mut state.nodes, vec![]);
+                parameter.value = std::mem::take(&mut state.nodes);
             }
             parameters.push(Parameter {
                 end: 0,

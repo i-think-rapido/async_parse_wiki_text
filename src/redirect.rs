@@ -80,6 +80,5 @@ pub async fn parse_redirect(state: &mut State<'_>, configuration: &Configuration
                 start: start_position,
             });
         }
-        return;
     }
 }

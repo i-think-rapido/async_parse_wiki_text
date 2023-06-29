@@ -215,13 +215,10 @@ async fn parse_preformatted_end_of_line(state: &mut State<'_>) {
                 }
                 Some(b'|')
                     if state.get_byte(position + 1).await == Some(b'}') && state.stack.len() > 1
-                        && match state.stack.get(state.stack.len() - 2) {
-                            Some(OpenNode {
+                        && matches!(state.stack.get(state.stack.len() - 2), Some(OpenNode {
                                 type_: OpenNodeType::Table { .. },
                                 ..
-                            }) => true,
-                            _ => false,
-                        } =>
+                            })) =>
                 {
                     break;
                 }
