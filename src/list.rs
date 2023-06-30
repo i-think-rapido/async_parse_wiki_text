@@ -6,7 +6,7 @@ use crate::{Warning, DefinitionListItem, Node, WarningMessage, DefinitionListIte
 use crate::state::{OpenNodeType, State};
 use crate::state::OpenNode;
 
-pub async fn parse_list_end_of_line(state: &mut State<'_>) {
+pub async fn parse_list_end_of_line(state: &mut State) {
     let item_end_position = state.skip_whitespace_backwards(state.scan_position).await;
     state.flush(item_end_position).await;
     state.scan_position += 1;
@@ -119,6 +119,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
                     start: state.scan_position - 1,
                     type_: if state
                         .wiki_text
+                        .as_ref()
                         .as_bytes()
                         .get(state.scan_position - 1)
                         .cloned() == Some(b';')
@@ -169,7 +170,7 @@ pub async fn parse_list_end_of_line(state: &mut State<'_>) {
     }
 }
 
-pub async fn parse_list_item_start(state: &mut State<'_>) -> bool {
+pub async fn parse_list_item_start(state: &mut State) -> bool {
     let open_node_type = match state.get_byte(state.scan_position).await {
         Some(b'#') => OpenNodeType::OrderedList {
             items: vec![ListItem {
@@ -208,7 +209,7 @@ pub async fn parse_list_item_start(state: &mut State<'_>) -> bool {
     true
 }
 
-pub async fn skip_spaces(state: &mut State<'_>) {
+pub async fn skip_spaces(state: &mut State) {
     while matches!(state.get_byte(state.scan_position).await, Some(b'\t') | Some(b' ')) {
         state.scan_position += 1;
     }

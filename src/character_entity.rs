@@ -5,10 +5,10 @@
 use crate::state::State;
 use crate::{Configuration, Node};
 
-pub async fn parse_character_entity(state: &mut State<'_>, configuration: &Configuration) {
+pub async fn parse_character_entity(state: &mut State, configuration: &Configuration) {
     if let Ok((match_length, character)) = configuration
         .character_entities
-        .find(&state.wiki_text[state.scan_position + 1..])
+        .find(&state.wiki_text.as_ref()[state.scan_position + 1..])
     {
         let start_position = state.scan_position;
         state.flush(start_position).await;

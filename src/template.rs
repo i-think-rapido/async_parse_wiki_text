@@ -2,12 +2,14 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use tokio::task::yield_now;
+
 use crate::state::{State, OpenNode};
 use crate::state::OpenNodeType;
 use crate::{Parameter, Warning, WarningMessage, Node};
 
 
-pub async fn parse_parameter_name_end(state: &mut State<'_>) {
+pub async fn parse_parameter_name_end(state: &mut State) {
     let stack_length = state.stack.len();
     if stack_length > 0 {
         if let OpenNode {
@@ -25,11 +27,11 @@ pub async fn parse_parameter_name_end(state: &mut State<'_>) {
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, state.scan_position).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), state.scan_position).await,
+                    state.wiki_text.clone(),
                 ).await;
                 state.flushed_position =
-                    crate::state::skip_whitespace_forwards(state.wiki_text, state.scan_position + 1).await;
+                    crate::state::skip_whitespace_forwards(state.wiki_text.clone(), state.scan_position + 1).await;
                 state.scan_position = state.flushed_position;
                 *name = Some(std::mem::take(&mut state.nodes));
                 return;
@@ -37,9 +39,10 @@ pub async fn parse_parameter_name_end(state: &mut State<'_>) {
         }
     }
     state.scan_position += 1;
+    yield_now().await;
 }
 
-pub async fn parse_parameter_separator(state: &mut State<'_>) {
+pub async fn parse_parameter_separator(state: &mut State) {
     match state.stack.last_mut() {
         Some(OpenNode {
             type_: OpenNodeType::Parameter { default, name },
@@ -47,12 +50,12 @@ pub async fn parse_parameter_separator(state: &mut State<'_>) {
         }) => {
             if name.is_none() {
                 let position =
-                    crate::state::skip_whitespace_backwards(state.wiki_text, state.scan_position).await;
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), state.scan_position).await;
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
                     position,
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                 ).await;
                 *name = Some(std::mem::take(&mut state.nodes));
             } else {
@@ -60,7 +63,7 @@ pub async fn parse_parameter_separator(state: &mut State<'_>) {
                     &mut state.nodes,
                     state.flushed_position,
                     state.scan_position,
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                 ).await;
                 *default = Some(std::mem::take(&mut state.nodes));
                 state.warnings.push(Warning {
@@ -76,7 +79,7 @@ pub async fn parse_parameter_separator(state: &mut State<'_>) {
     }
 }
 
-pub async fn parse_template_end(state: &mut State<'_>) {
+pub async fn parse_template_end(state: &mut State) {
     match state.stack.pop() {
         Some(OpenNode {
             nodes,
@@ -163,21 +166,21 @@ pub async fn parse_template_end(state: &mut State<'_>) {
     }
 }
 
-pub async fn parse_template_separator(state: &mut State<'_>) {
+pub async fn parse_template_separator(state: &mut State) {
     match state.stack.last_mut() {
         Some(OpenNode {
             type_: OpenNodeType::Template { name, parameters },
             ..
         }) => {
-            let position = crate::state::skip_whitespace_backwards(state.wiki_text, state.scan_position).await;
+            let position = crate::state::skip_whitespace_backwards(state.wiki_text.clone(), state.scan_position).await;
             crate::state::flush(
                 &mut state.nodes,
                 state.flushed_position,
                 position,
-                state.wiki_text,
+                state.wiki_text.clone(),
             ).await;
             state.flushed_position =
-                crate::state::skip_whitespace_forwards(state.wiki_text, state.scan_position + 1).await;
+                crate::state::skip_whitespace_forwards(state.wiki_text.clone(), state.scan_position + 1).await;
             state.scan_position = state.flushed_position;
             if name.is_none() {
                 *name = Some(std::mem::take(&mut state.nodes));
@@ -196,9 +199,10 @@ pub async fn parse_template_separator(state: &mut State<'_>) {
         }
         _ => unreachable!(),
     }
+    yield_now().await;
 }
 
-pub async fn parse_template_start(state: &mut State<'_>) {
+pub async fn parse_template_start(state: &mut State) {
     let scan_position = state.scan_position;
     if state.get_byte(state.scan_position + 2).await == Some(b'{') {
         let position = state.skip_whitespace_forwards(scan_position + 3).await;

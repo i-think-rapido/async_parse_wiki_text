@@ -3,7 +3,7 @@
 // the file LICENSE at the top-level directory of this distribution.
 
 use std::collections::{HashMap, HashSet};
-use crate::{Configuration, Output, parse, default, Trie, TagClass, html_entities};
+use crate::{Configuration, Output, parse, default, Trie, TagClass, html_entities, WikiText, Text};
 
 /// Site specific configuration of a wiki.
 ///
@@ -82,7 +82,7 @@ impl Configuration {
         for tag_name in source.extension_tags {
             configuration
                 .tag_name_map
-                .insert(tag_name.to_string(), TagClass::ExtensionTag);
+                .insert(Text::new(tag_name), TagClass::ExtensionTag);
         }
         for tag_name in [
             "abbr",
@@ -146,14 +146,14 @@ impl Configuration {
         {
             configuration
                 .tag_name_map
-                .insert(tag_name.to_string(), TagClass::Tag);
+                .insert(Text::new(tag_name), TagClass::Tag);
         }
         configuration
     }
 
     /// Parses wiki text into structured data.
     #[must_use]
-    pub async fn parse<'a>(&self, wiki_text: &'a str) -> Output<'a> {
+    pub async fn parse<'a>(&self, wiki_text: WikiText) -> Output {
         parse::parse(self, wiki_text).await
     }
 }

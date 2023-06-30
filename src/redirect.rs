@@ -2,13 +2,14 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use crate::text::Text;
 use crate::state::State;
 use crate::{Configuration, Warning, Node, WarningMessage};
 
-pub async fn parse_redirect(state: &mut State<'_>, configuration: &Configuration, start_position: usize) {
+pub async fn parse_redirect(state: &mut State, configuration: &Configuration, start_position: usize) {
     let mut position = match configuration
         .redirect_magic_words
-        .find(&state.wiki_text[start_position + 1..])
+        .find(&state.wiki_text.as_ref()[start_position + 1..])
     {
         Err(_) => return,
         Ok((match_length, _)) => match_length + start_position + 1,
@@ -69,7 +70,7 @@ pub async fn parse_redirect(state: &mut State<'_>, configuration: &Configuration
         state.nodes.push(Node::Redirect {
             end: position,
             start: start_position,
-            target: &state.wiki_text[target_start_position..target_end_position],
+            target: Text::new(&state.wiki_text.as_ref()[target_start_position..target_end_position]),
         });
         state.flushed_position = state.skip_whitespace_forwards(position).await;
         state.scan_position = state.flushed_position;

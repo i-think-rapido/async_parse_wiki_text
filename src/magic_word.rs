@@ -5,10 +5,10 @@
 use crate::state::State;
 use crate::{Configuration, Node};
 
-pub async fn parse_magic_word(state: &mut State<'_>, configuration: &Configuration) {
+pub async fn parse_magic_word(state: &mut State, configuration: &Configuration) {
     if let Ok((match_length, _)) = configuration
         .magic_words
-        .find(&state.wiki_text[state.scan_position + 2..])
+        .find(&state.wiki_text.as_ref()[state.scan_position + 2..])
     {
         let end_position = match_length + state.scan_position + 2;
         if state.get_byte(end_position).await == Some(b'_')

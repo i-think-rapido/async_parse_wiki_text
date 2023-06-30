@@ -5,17 +5,17 @@
 use crate::state::{State, OpenNode};
 use crate::state::OpenNodeType;
 use crate::{Warning, Output, Configuration, WarningMessage};
-use crate::{redirect, line, template, table, magic_word, link, character_entity, bold_italic, external_link, comment, tag};
+use crate::{redirect, line, template, table, magic_word, link, character_entity, bold_italic, external_link, comment, tag, WikiText};
 
 #[must_use]
-pub async fn parse<'a>(configuration: &Configuration, wiki_text: &'a str) -> Output<'a> {
+pub async fn parse<'a>(configuration: &Configuration, wiki_text: WikiText) -> Output {
     let mut state = State {
         flushed_position: 0,
         nodes: vec![],
         scan_position: 0,
         stack: vec![],
         warnings: vec![],
-        wiki_text,
+        wiki_text: wiki_text.clone(),
     };
     {
         let mut has_line_break = false;

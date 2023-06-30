@@ -126,16 +126,17 @@ mod state;
 mod table;
 mod tag;
 mod template;
+mod text;
 mod trie;
 mod warning;
 
 use configuration::Namespace;
 pub use configuration::ConfigurationSource;
-use std::{
-    borrow::Cow, collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 use trie::Trie;
 pub use warning::{Warning, WarningMessage};
+pub use text::Text as WikiText;
+use text::Text;
 
 /// Configuration for the parser.
 ///
@@ -147,17 +148,17 @@ pub struct Configuration {
     namespaces: Trie<Namespace>,
     protocols: Trie<()>,
     redirect_magic_words: Trie<()>,
-    tag_name_map: HashMap<String, TagClass>,
+    tag_name_map: HashMap<Text, TagClass>,
 }
 
 /// List item of a definition list.
-#[derive(Debug)]
-pub struct DefinitionListItem<'a> {
+#[derive(Debug, PartialEq)]
+pub struct DefinitionListItem {
     /// The byte position in the wiki text where the element ends.
     pub end: usize,
 
     /// The content of the element.
-    pub nodes: Vec<Node<'a>>,
+    pub nodes: Vec<Node>,
 
     /// The byte position in the wiki text where the element starts.
     pub start: usize,
@@ -177,21 +178,21 @@ pub enum DefinitionListItemType {
 }
 
 /// List item of an ordered list or unordered list.
-#[derive(Debug)]
-pub struct ListItem<'a> {
+#[derive(Debug, PartialEq)]
+pub struct ListItem {
     /// The byte position in the wiki text where the element ends.
     pub end: usize,
 
     /// The content of the element.
-    pub nodes: Vec<Node<'a>>,
+    pub nodes: Vec<Node>,
 
     /// The byte position in the wiki text where the element starts.
     pub start: usize,
 }
 
 /// Parsed node.
-#[derive(Debug)]
-pub enum Node<'a> {
+#[derive(Debug, PartialEq)]
+pub enum Node {
     /// Toggle bold text. Parsed from the code `'''`.
     Bold {
         /// The byte position in the wiki text where the element ends.
@@ -216,13 +217,13 @@ pub enum Node<'a> {
         end: usize,
 
         /// Additional information for sorting entries on the category page, if any.
-        ordinal: Vec<Node<'a>>,
+        ordinal: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
 
         /// The category referred to.
-        target: &'a str,
+        target: Text,
     },
 
     /// Character entity. Parsed from code starting with `&` and ending with `;`.
@@ -252,7 +253,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The list items of the list.
-        items: Vec<DefinitionListItem<'a>>,
+        items: Vec<DefinitionListItem>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -264,7 +265,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The tag name.
-        name: Cow<'a, str>,
+        name: Text,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -276,7 +277,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The content of the element.
-        nodes: Vec<Node<'a>>,
+        nodes: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -291,7 +292,7 @@ pub enum Node<'a> {
         level: u8,
 
         /// The content of the element.
-        nodes: Vec<Node<'a>>,
+        nodes: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -315,10 +316,10 @@ pub enum Node<'a> {
         start: usize,
 
         /// The file name of the image.
-        target: &'a str,
+        target: Text,
 
         /// Additional information for the image.
-        text: Vec<Node<'a>>,
+        text: Vec<Node>,
     },
 
     /// Toggle italic text. Parsed from the code `''`.
@@ -339,10 +340,10 @@ pub enum Node<'a> {
         start: usize,
 
         /// The target of the link.
-        target: &'a str,
+        target: Text,
 
         /// The text to display for the link.
-        text: Vec<Node<'a>>,
+        text: Vec<Node>,
     },
 
     /// Magic word. Parsed from the code `__`, a valid magic word and `__`.
@@ -360,7 +361,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The list items of the list.
-        items: Vec<ListItem<'a>>,
+        items: Vec<ListItem>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -378,13 +379,13 @@ pub enum Node<'a> {
     /// Parameter. Parsed from code starting with `{{{` and ending with `}}}`.
     Parameter {
         /// The default value of the parameter.
-        default: Option<Vec<Node<'a>>>,
+        default: Option<Vec<Node>>,
 
         /// The byte position in the wiki text where the element ends.
         end: usize,
 
         /// The name of the parameter.
-        name: Vec<Node<'a>>,
+        name: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -396,7 +397,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The content of the element.
-        nodes: Vec<Node<'a>>,
+        nodes: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -408,7 +409,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The target of the redirect.
-        target: &'a str,
+        target: Text,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -420,7 +421,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The tag name.
-        name: Cow<'a, str>,
+        name: Text,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -429,16 +430,16 @@ pub enum Node<'a> {
     /// Table. Parsed from code starting with `{|`.
     Table {
         /// The HTML attributes of the element.
-        attributes: Vec<Node<'a>>,
+        attributes: Vec<Node>,
 
         /// The captions of the table.
-        captions: Vec<TableCaption<'a>>,
+        captions: Vec<TableCaption>,
 
         /// The byte position in the wiki text where the element ends.
         end: usize,
 
         /// The rows of the table.
-        rows: Vec<TableRow<'a>>,
+        rows: Vec<TableRow>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -450,10 +451,10 @@ pub enum Node<'a> {
         end: usize,
 
         /// The tag name.
-        name: Cow<'a, str>,
+        name: Text,
 
         /// The content of the tag, between the start tag and the end tag, if any.
-        nodes: Vec<Node<'a>>,
+        nodes: Vec<Node>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -465,10 +466,10 @@ pub enum Node<'a> {
         end: usize,
 
         /// The name of the template.
-        name: Vec<Node<'a>>,
+        name: Vec<Node>,
 
         /// The parameters of the template.
-        parameters: Vec<Parameter<'a>>,
+        parameters: Vec<Parameter>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -483,7 +484,7 @@ pub enum Node<'a> {
         start: usize,
 
         /// The text.
-        value: &'a str,
+        value: Text,
     },
 
     /// Unordered list. Parsed from code starting with `*`.
@@ -492,7 +493,7 @@ pub enum Node<'a> {
         end: usize,
 
         /// The list items of the list.
-        items: Vec<ListItem<'a>>,
+        items: Vec<ListItem>,
 
         /// The byte position in the wiki text where the element starts.
         start: usize,
@@ -501,28 +502,28 @@ pub enum Node<'a> {
 
 /// Output of parsing wiki text.
 #[derive(Debug)]
-pub struct Output<'a> {
+pub struct Output {
     /// The top level of parsed nodes.
-    pub nodes: Vec<Node<'a>>,
+    pub nodes: Vec<Node>,
 
     /// Warnings from the parser telling that something is not well-formed.
     pub warnings: Vec<Warning>,
 }
 
 /// Template parameter.
-#[derive(Debug)]
-pub struct Parameter<'a> {
+#[derive(Debug, PartialEq)]
+pub struct Parameter {
     /// The byte position in the wiki text where the element ends.
     pub end: usize,
 
     /// The name of the parameter, if any.
-    pub name: Option<Vec<Node<'a>>>,
+    pub name: Option<Vec<Node>>,
 
     /// The byte position in the wiki text where the element starts.
     pub start: usize,
 
     /// The value of the parameter.
-    pub value: Vec<Node<'a>>,
+    pub value: Vec<Node>,
 }
 
 /// Element that has a start position and end position.
@@ -541,13 +542,13 @@ enum TagClass {
 }
 
 /// Table caption.
-#[derive(Debug)]
-pub struct TableCaption<'a> {
+#[derive(Debug, PartialEq)]
+pub struct TableCaption {
     /// The HTML attributes of the element.
-    pub attributes: Option<Vec<Node<'a>>>,
+    pub attributes: Option<Vec<Node>>,
 
     /// The content of the element.
-    pub content: Vec<Node<'a>>,
+    pub content: Vec<Node>,
 
     /// The byte position in the wiki text where the element ends.
     pub end: usize,
@@ -557,13 +558,13 @@ pub struct TableCaption<'a> {
 }
 
 /// Table cell.
-#[derive(Debug)]
-pub struct TableCell<'a> {
+#[derive(Debug, PartialEq)]
+pub struct TableCell {
     /// The HTML attributes of the element.
-    pub attributes: Option<Vec<Node<'a>>>,
+    pub attributes: Option<Vec<Node>>,
 
     /// The content of the element.
-    pub content: Vec<Node<'a>>,
+    pub content: Vec<Node>,
 
     /// The byte position in the wiki text where the element ends.
     pub end: usize,
@@ -586,13 +587,13 @@ pub enum TableCellType {
 }
 
 /// Table row.
-#[derive(Debug)]
-pub struct TableRow<'a> {
+#[derive(Debug, PartialEq)]
+pub struct TableRow {
     /// The HTML attributes of the element.
-    pub attributes: Vec<Node<'a>>,
+    pub attributes: Vec<Node>,
 
     /// The cells in the row.
-    pub cells: Vec<TableCell<'a>>,
+    pub cells: Vec<TableCell>,
 
     /// The byte position in the wiki text where the element ends.
     pub end: usize,

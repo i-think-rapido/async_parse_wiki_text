@@ -5,8 +5,9 @@
 #[path = "test_cases.rs"]
 mod test_cases;
 use test_cases::TEST_CASES;
+use text_wrapper::Text;
 
-pub async fn run_test(configuration: &parse_wiki_text::Configuration) {
+pub async fn run_test(configuration: &async_parse_wiki_text::Configuration) {
     let mut output = concat!(
         "<title>Parse Wiki Text test cases</title>",
         "<style>",
@@ -49,7 +50,7 @@ pub async fn run_test(configuration: &parse_wiki_text::Configuration) {
                 .replace("\n", "<span>⏎</span>\n")
                 .replace(" ", "<span>·</span>")
                 .replace("</span><span>", "");
-            match ::std::panic::catch_unwind(|| configuration.parse(wiki_text)) {
+            match ::std::panic::catch_unwind(|| configuration.parse(Text::new(wiki_text))) {
                 Err(_) => {
                     eprintln!("Panic with wiki text {:?}", wiki_text);
                     output += "</pre><hr>panic</div>";

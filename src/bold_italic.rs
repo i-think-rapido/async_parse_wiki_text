@@ -2,10 +2,12 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use tokio::task::yield_now;
+
 use crate::state::State;
 use crate::Node;
 
-pub async fn parse_bold_italic(state: &mut State<'_>) {
+pub async fn parse_bold_italic(state: &mut State) {
     let scan_position = state.scan_position;
     state.flush(scan_position).await;
     let start_position = state.scan_position;
@@ -33,4 +35,5 @@ pub async fn parse_bold_italic(state: &mut State<'_>) {
             start: start_position,
         });
     }
+    yield_now().await;
 }

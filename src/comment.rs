@@ -2,12 +2,11 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-use std::borrow::Cow;
 use crate::state::State;
-use crate::{Node, Warning, WarningMessage};
+use crate::{Node, Warning, WarningMessage, Text};
 use crate::state::OpenNodeType;
 
-pub async fn parse_comment(state: &mut State<'_>) {
+pub async fn parse_comment(state: &mut State) {
     let start_position = state.scan_position;
     let mut position = start_position;
     state.flush(position).await;
@@ -40,7 +39,7 @@ pub async fn parse_comment(state: &mut State<'_>) {
 }
 
 async fn parse_end_tag(
-    state: &mut State<'_>,
+    state: &mut State,
     comment_start_position: usize,
     tag_start_position: usize,
 ) -> bool {
@@ -60,12 +59,7 @@ async fn parse_end_tag(
             _ => tag_name_end_position += 1,
         }
     } + 1;
-    let tag_name = &state.wiki_text[tag_name_start_position..tag_name_end_position];
-    let tag_name = if tag_name.as_bytes().iter().all(u8::is_ascii_lowercase) {
-        Cow::Borrowed(tag_name)
-    } else {
-        tag_name.to_ascii_lowercase().into()
-    };
+    let tag_name = Text::new(&state.wiki_text.as_ref()[tag_name_start_position..tag_name_end_position].to_ascii_lowercase());
     let mut matched_node_index = None;
     for (open_node_index, open_node) in state.stack.iter().enumerate().rev() {
         if let OpenNodeType::Tag { name, .. } = &open_node.type_ {

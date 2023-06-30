@@ -2,21 +2,23 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use tokio::task::yield_now;
+
 use crate::state::{State, TableState, Table};
 use crate::state::OpenNode;
 use crate::state::OpenNodeType;
 use crate::{TableCell, TableRow, TableCaption, Warning, Node, TableCellType, WarningMessage};
 
-pub async fn parse_heading_cell(state: &mut State<'_>) {
+pub async fn parse_heading_cell(state: &mut State) {
     let table = get_table(&mut state.stack);
     let position_before_token = state.scan_position;
     if let crate::state::TableState::HeadingFirstLine = table.state {
-        let end = crate::state::skip_whitespace_backwards(state.wiki_text, position_before_token).await;
+        let end = crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_token).await;
         crate::state::flush(
             &mut state.nodes,
             state.flushed_position,
             end,
-            state.wiki_text,
+            state.wiki_text.clone(),
         ).await;
         if table.rows.is_empty() {
             table.rows.push(TableRow {
@@ -37,7 +39,7 @@ pub async fn parse_heading_cell(state: &mut State<'_>) {
         row.end = end;
         table.start = position_before_token;
         state.scan_position = position_before_token + 2;
-        while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
+        while let Some(character) = state.wiki_text.as_ref().as_bytes().get(state.scan_position) {
             match character {
                 b'\t' | b' ' => state.scan_position += 1,
                 _ => break,
@@ -47,9 +49,10 @@ pub async fn parse_heading_cell(state: &mut State<'_>) {
     } else {
         state.scan_position += 2;
     }
+    yield_now().await;
 }
 
-pub async fn parse_table_end_of_line(state: &mut State<'_>, paragraph_break_possible: bool) {
+pub async fn parse_table_end_of_line(state: &mut State, paragraph_break_possible: bool) {
     let position_before_line_break = state.scan_position;
     let mut position_after_line_break = position_before_line_break + 1;
     let mut scan_position = position_after_line_break;
@@ -121,7 +124,7 @@ pub async fn parse_table_end_of_line(state: &mut State<'_>, paragraph_break_poss
 }
 
 async fn change_state(
-    state: &mut State<'_>,
+    state: &mut State,
     target_table_state: TableState,
     position_before_line_break: usize,
     position_before_token: usize,
@@ -135,13 +138,13 @@ async fn change_state(
         }
     }
     let table = get_table(&mut state.stack);
-    let end = crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await;
+    let end = crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_line_break).await;
     if paragraph_break_possible {
         crate::state::flush(
             &mut state.nodes,
             state.flushed_position,
             end,
-            state.wiki_text,
+            state.wiki_text.clone(),
         ).await;
     }
     match table.state {
@@ -220,7 +223,7 @@ async fn change_state(
 }
 
 async fn parse_end(
-    state: &mut State<'_>,
+    state: &mut State,
     position_before_line_break: usize,
     position_after_token: usize,
     paragraph_break_possible: bool,
@@ -238,7 +241,7 @@ async fn parse_end(
         }) => {
             if paragraph_break_possible {
                 state.flush(crate::state::skip_whitespace_backwards(
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                     position_before_line_break,
                 ).await).await;
             }
@@ -332,10 +335,11 @@ async fn parse_end(
         }
         _ => unreachable!(),
     }
+    yield_now().await;
 }
 
 async fn parse_line_break(
-    state: &mut State<'_>,
+    state: &mut State,
     position_before_line_break: usize,
     position_after_line_break: usize,
     position_after_token: usize,
@@ -361,8 +365,8 @@ async fn parse_line_break(
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_line_break).await,
+                    state.wiki_text.clone(),
                 ).await;
                 state.nodes.push(Node::ParagraphBreak {
                     end: position_after_line_break,
@@ -377,8 +381,8 @@ async fn parse_line_break(
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_line_break).await,
+                    state.wiki_text.clone(),
                 ).await;
                 state.nodes.push(Node::ParagraphBreak {
                     end: position_after_line_break,
@@ -396,8 +400,8 @@ async fn parse_line_break(
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_line_break).await,
+                    state.wiki_text.clone(),
                 ).await;
                 table.attributes = std::mem::take(&mut state.nodes);
                 table.start = position_after_token;
@@ -412,8 +416,8 @@ async fn parse_line_break(
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_line_break).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_line_break).await,
+                    state.wiki_text.clone(),
                 ).await;
                 table.rows.push(TableRow {
                     attributes: std::mem::take(&mut state.nodes),
@@ -441,11 +445,12 @@ async fn parse_line_break(
     ).await;
 }
 
-pub async fn parse_inline_token(state: &mut State<'_>) {
+pub async fn parse_inline_token(state: &mut State) {
     let table = get_table(&mut state.stack);
     let position_before_token = state.scan_position;
     if state
         .wiki_text
+        .as_ref()
         .as_bytes()
         .get(position_before_token + 1)
         .cloned() == Some(b'|')
@@ -453,12 +458,12 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
         match table.state {
             crate::state::TableState::CaptionFirstLine => {
                 let end =
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_token).await;
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_token).await;
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
                     end,
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                 ).await;
                 table.captions.push(TableCaption {
                     attributes: table.child_element_attributes.take(),
@@ -468,7 +473,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 });
                 table.start = position_before_token;
                 state.scan_position = position_before_token + 2;
-                while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
+                while let Some(character) = state.wiki_text.as_ref().as_bytes().get(state.scan_position) {
                     match character {
                         b'\t' | b' ' => state.scan_position += 1,
                         _ => break,
@@ -478,12 +483,12 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
             }
             crate::state::TableState::CellFirstLine => {
                 let end =
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_token).await;
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_token).await;
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
                     end,
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                 ).await;
                 if table.rows.is_empty() {
                     table.rows.push(TableRow {
@@ -504,7 +509,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 row.end = end;
                 table.start = position_before_token;
                 state.scan_position = position_before_token + 2;
-                while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
+                while let Some(character) = state.wiki_text.as_ref().as_bytes().get(state.scan_position) {
                     match character {
                         b'\t' | b' ' => state.scan_position += 1,
                         _ => break,
@@ -514,12 +519,12 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
             }
             crate::state::TableState::HeadingFirstLine => {
                 let end =
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_token).await;
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_token).await;
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
                     end,
-                    state.wiki_text,
+                    state.wiki_text.clone(),
                 ).await;
                 if table.rows.is_empty() {
                     table.rows.push(TableRow {
@@ -540,7 +545,7 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 row.end = end;
                 table.start = position_before_token;
                 state.scan_position = position_before_token + 2;
-                while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
+                while let Some(character) = state.wiki_text.as_ref().as_bytes().get(state.scan_position) {
                     match character {
                         b'\t' | b' ' => state.scan_position += 1,
                         _ => break,
@@ -559,13 +564,13 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
                 crate::state::flush(
                     &mut state.nodes,
                     state.flushed_position,
-                    crate::state::skip_whitespace_backwards(state.wiki_text, position_before_token).await,
-                    state.wiki_text,
+                    crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position_before_token).await,
+                    state.wiki_text.clone(),
                 ).await;
                 table.child_element_attributes =
                     Some(std::mem::take(&mut state.nodes));
                 state.scan_position = position_before_token + 1;
-                while let Some(character) = state.wiki_text.as_bytes().get(state.scan_position) {
+                while let Some(character) = state.wiki_text.as_ref().as_bytes().get(state.scan_position) {
                     match character {
                         b'\t' | b' ' => state.scan_position += 1,
                         _ => break,
@@ -576,15 +581,16 @@ pub async fn parse_inline_token(state: &mut State<'_>) {
             _ => state.scan_position += 1,
         }
     }
+    yield_now().await;
 }
 
-pub async fn start_table(state: &mut State<'_>, position_before_line_break: Option<usize>) {
+pub async fn start_table(state: &mut State, position_before_line_break: Option<usize>) {
     if let Some(position) = position_before_line_break {
         crate::state::flush(
             &mut state.nodes,
             state.flushed_position,
-            crate::state::skip_whitespace_backwards(state.wiki_text, position).await,
-            state.wiki_text,
+            crate::state::skip_whitespace_backwards(state.wiki_text.clone(), position).await,
+            state.wiki_text.clone(),
         ).await;
     }
     state.flushed_position = state.scan_position;
@@ -606,7 +612,7 @@ pub async fn start_table(state: &mut State<'_>, position_before_line_break: Opti
     ).await;
 }
 
-fn get_table<'a, 'b>(stack: &'a mut [OpenNode<'b>]) -> &'a mut crate::state::Table<'b> {
+fn get_table(stack: &mut [OpenNode]) -> &mut crate::state::Table {
     match stack.last_mut() {
         Some(OpenNode {
             type_: OpenNodeType::Table(table),

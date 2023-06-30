@@ -2,7 +2,9 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-extern crate parse_wiki_text;
+use text_wrapper::Text;
+
+extern crate async_parse_wiki_text;
 
 mod test;
 mod test_cases;
@@ -23,7 +25,7 @@ async fn main() {
                         Ok(file_contents) => {
                             println!(
                                 "{:#?}",
-                                parse_wiki_text::Configuration::default().parse(&file_contents).await
+                                async_parse_wiki_text::Configuration::default().parse(Text::new(&file_contents)).await
                             );
                             return;
                         }
@@ -34,8 +36,8 @@ async fn main() {
                 if args.next().is_none() {
                     println!(
                         "{:#?}",
-                        parse_wiki_text::Configuration::default()
-                            .parse(&wiki_text.replace("\\t", "\t").replace("\\n", "\n")).await
+                        async_parse_wiki_text::Configuration::default()
+                            .parse(Text::new(&wiki_text.replace("\\t", "\t").replace("\\n", "\n"))).await
                     );
                     return;
                 }

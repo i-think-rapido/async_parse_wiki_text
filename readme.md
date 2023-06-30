@@ -10,6 +10,36 @@ Parse wiki text from Mediawiki into a tree of elements.
 
 ![Parse Wiki Text](https://portstrom.com/parse_wiki_text.svg)
 
+----
+
+This is essentially the async version of the crate `parse_wiki_text`
+
+## Notes about the async version of the original crate
+
+This is a refactoring for usage in an async environment.
+
+### The cause of creating this crate
+
+In general the crate `parse_wiki_text` is reliable, but in some circumstances it is not.
+
+When parsing distinct wiki-text formated input, this parser takes an exagerated amount of time, not
+to mention that it fills up the memory with a lot of data. I'm assuming that this parser is then stuck in an infinite recursive loop. 
+
+I was not able to investigate the problem in full extend because, as Fredrik explains below, the 
+wiki-format is a total mess of rules and, therefore, I opted for early exit, when the execution takes too 
+long. Here should be the crate `futures-time` mentioned, which has handy resolver functions for async
+code. But this crate has some caveats, too. A long running thread will not time-out, because the `futures-time` crate relies on having interruptions of the thread by the await keyword, which means, that
+the old parse function took excessivly long (sometimes infinitely long) to finish despite of being async
+and timed-out.
+
+Another thing is, that I had to introduce a WikiText Wrapper struct around the input data.
+The original code used a single thread approach with a `&str` in memory representation for optimal usage
+of working memory. I was not able to keep this promise, so now, the async solution takes more memory.
+
+The following text is copied in full of the original readme by Fredrik.
+
+----
+
 ## Introduction
 
 Wiki text is a format that follows the PHP maxim “Make everything as inconsistent and confusing as possible”. There are hundreds of millions of interesting documents written in this format, distributed under free licenses on sites that use the Mediawiki software, mainly Wikipedia and Wiktionary. Being able to parse wiki text and process these documents would allow access to a significant part of the world's knowledge.

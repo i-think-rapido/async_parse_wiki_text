@@ -2,14 +2,16 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use tokio::task::yield_now;
+
 use crate::state::State;
 use crate::{Warning, Configuration, Node, WarningMessage};
 use crate::state::OpenNodeType;
 
 pub async fn parse_external_link_end<'a>(
-    state: &mut State<'a>,
+    state: &mut State,
     start_position: usize,
-    nodes: Vec<Node<'a>>,
+    nodes: Vec<Node>,
 ) {
     let scan_position = state.scan_position;
     state.flush(scan_position).await;
@@ -23,7 +25,7 @@ pub async fn parse_external_link_end<'a>(
     });
 }
 
-pub async fn parse_external_link_end_of_line(state: &mut State<'_>) {
+pub async fn parse_external_link_end_of_line(state: &mut State) {
     let end = state.scan_position;
     let open_node = state.stack.pop().unwrap();
     state.warnings.push(Warning {
@@ -32,13 +34,14 @@ pub async fn parse_external_link_end_of_line(state: &mut State<'_>) {
         start: open_node.start,
     });
     state.rewind(open_node.nodes, open_node.start);
+    yield_now().await;
 }
 
-pub async fn parse_external_link_start(state: &mut State<'_>, configuration: &Configuration) {
+pub async fn parse_external_link_start(state: &mut State, configuration: &Configuration) {
     let scheme_start_position = state.scan_position + 1;
     match configuration
         .protocols
-        .find(&state.wiki_text[scheme_start_position..])
+        .find(&state.wiki_text.as_ref()[scheme_start_position..])
     {
         Err(_) => {
             state.scan_position = scheme_start_position;
@@ -47,4 +50,5 @@ pub async fn parse_external_link_start(state: &mut State<'_>, configuration: &Co
             state.push_open_node(OpenNodeType::ExternalLink, scheme_start_position).await;
         }
     }
+    yield_now().await;
 }

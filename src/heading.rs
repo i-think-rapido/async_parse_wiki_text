@@ -2,11 +2,12 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
+use crate::text::Text;
 use crate::state::State;
 use crate::{Warning, Node, WarningMessage};
 use crate::state::OpenNodeType;
 
-pub async fn parse_heading_end(state: &mut State<'_>) {
+pub async fn parse_heading_end(state: &mut State) {
     let mut end_position = state.scan_position;
     while let Some(b'\t') | Some(b' ') = state.get_byte(end_position - 1).await {
         end_position -= 1;
@@ -47,7 +48,7 @@ pub async fn parse_heading_end(state: &mut State<'_>) {
             }
             Some(Node::Text { end, start, value }) => {
                 *start = inner_start_position;
-                *value = &state.wiki_text[inner_start_position..*end];
+                *value = Text::new(&state.wiki_text.as_ref()[inner_start_position..*end]);
                 false
             }
             Some(_) => true,
@@ -58,7 +59,7 @@ pub async fn parse_heading_end(state: &mut State<'_>) {
                 Node::Text {
                     end,
                     start: inner_start_position,
-                    value: &state.wiki_text[inner_start_position..end],
+                    value: Text::new(&state.wiki_text.as_ref()[inner_start_position..end]),
                 },
             );
         }
@@ -75,7 +76,7 @@ pub async fn parse_heading_end(state: &mut State<'_>) {
     state.skip_empty_lines().await;
 }
 
-pub async fn parse_heading_start(state: &mut State<'_>) {
+pub async fn parse_heading_start(state: &mut State) {
     let mut level = 1;
     while state.get_byte(state.scan_position + level).await == Some(b'=') && level < 6 {
         level += 1;

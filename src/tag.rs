@@ -2,12 +2,11 @@
 // This is free software distributed under the terms specified in
 // the file LICENSE at the top-level directory of this distribution.
 
-use std::borrow::Cow;
-use crate::{Warning, Configuration, Node, WarningMessage, TagClass};
+use crate::{Warning, Configuration, Node, WarningMessage, TagClass, Text};
 use crate::state::State;
 use crate::state::OpenNodeType;
 
-pub async fn parse_end_tag(state: &mut State<'_>, configuration: &Configuration) {
+pub async fn parse_end_tag(state: &mut State, configuration: &Configuration) {
     let start_position = state.scan_position;
     let tag_name_start_position = start_position + 2;
     let mut tag_name_end_position = tag_name_start_position;
@@ -21,13 +20,8 @@ pub async fn parse_end_tag(state: &mut State<'_>, configuration: &Configuration)
             _ => tag_name_end_position += 1,
         }
     }
-    let tag_name = &state.wiki_text[tag_name_start_position..tag_name_end_position];
-    let tag_name = if tag_name.as_bytes().iter().all(u8::is_ascii_lowercase) {
-        Cow::Borrowed(tag_name)
-    } else {
-        tag_name.to_ascii_lowercase().into()
-    };
-    match configuration.tag_name_map.get(&tag_name as &str) {
+    let tag_name = Text::new(&state.wiki_text.as_ref()[tag_name_start_position..tag_name_end_position].to_ascii_lowercase());
+    match configuration.tag_name_map.get(&tag_name) {
         None => {
             state.scan_position = tag_name_start_position;
             state.warnings.push(Warning {
@@ -127,23 +121,18 @@ pub async fn parse_end_tag(state: &mut State<'_>, configuration: &Configuration)
     }
 }
 
-pub async fn parse_start_tag(state: &mut State<'_>, configuration: &Configuration) {
+pub async fn parse_start_tag(state: &mut State, configuration: &Configuration) {
     let start_position = state.scan_position;
     let tag_name_start_position = start_position + 1;
-    let tag_name_end_position = match state.wiki_text.as_bytes()[tag_name_start_position..]
+    let tag_name_end_position = match state.wiki_text.as_ref().as_bytes()[tag_name_start_position..]
         .iter()
         .cloned()
         .position(|character| matches!(character, b'\t' | b'\n' | b' ' | b'/' | b'>')) {
         None => state.wiki_text.len(),
         Some(position) => tag_name_start_position + position,
     };
-    let tag_name = &state.wiki_text[tag_name_start_position..tag_name_end_position];
-    let tag_name = if tag_name.as_bytes().iter().all(u8::is_ascii_lowercase) {
-        Cow::Borrowed(tag_name)
-    } else {
-        tag_name.to_ascii_lowercase().into()
-    };
-    match configuration.tag_name_map.get(&tag_name as &str) {
+    let tag_name = Text::new(state.wiki_text.as_ref()[tag_name_start_position..tag_name_end_position].to_ascii_lowercase());
+    match configuration.tag_name_map.get(&tag_name) {
         None => {
             state.scan_position = tag_name_start_position;
             state.warnings.push(Warning {
@@ -152,7 +141,7 @@ pub async fn parse_start_tag(state: &mut State<'_>, configuration: &Configuratio
                 start: tag_name_start_position,
             });
         }
-        Some(tag_class) => match state.wiki_text.as_bytes()[tag_name_end_position..]
+        Some(tag_class) => match state.wiki_text.as_ref().as_bytes()[tag_name_end_position..]
             .iter()
             .cloned()
             .position(|character| character == b'>')
@@ -180,13 +169,13 @@ pub async fn parse_start_tag(state: &mut State<'_>, configuration: &Configuratio
                                 start: start_position,
                             });
                         } else {
-                            match &tag_name as _ {
+                            match tag_name.as_ref() as _ {
                                 "math" | "nowiki" => {
                                     parse_plain_text_tag(
                                         state,
                                         start_position,
                                         tag_end_position,
-                                        &tag_name,
+                                        tag_name,
                                     ).await;
                                 }
                                 _ => {
@@ -215,10 +204,10 @@ pub async fn parse_start_tag(state: &mut State<'_>, configuration: &Configuratio
 }
 
 async fn parse_plain_text_tag<'a>(
-    state: &mut State<'a>,
+    state: &mut State,
     position_before_start_tag: usize,
     position_after_start_tag: usize,
-    start_tag_name: &str,
+    start_tag_name: Text,
 ) {
     loop {
         match state.get_byte(state.scan_position).await {
@@ -236,7 +225,7 @@ async fn parse_plain_text_tag<'a>(
                     state,
                     position_before_start_tag,
                     position_after_start_tag,
-                    start_tag_name,
+                    start_tag_name.clone(),
                 ).await {
                 break;
             },
@@ -247,10 +236,10 @@ async fn parse_plain_text_tag<'a>(
 }
 
 async fn parse_plain_text_end_tag<'a>(
-    state: &mut State<'a>,
+    state: &mut State,
     position_before_start_tag: usize,
     position_after_start_tag: usize,
-    start_tag_name: &str,
+    start_tag_name: Text,
 ) -> bool {
     let position_before_end_tag = state.scan_position;
     let position_before_end_tag_name = state.scan_position + 2;
@@ -270,18 +259,13 @@ async fn parse_plain_text_end_tag<'a>(
             _ => position_after_end_tag_name += 1,
         }
     } + 1;
-    let end_tag_name = &state.wiki_text[position_before_end_tag_name..position_after_end_tag_name];
-    let end_tag_name = if end_tag_name.as_bytes().iter().all(u8::is_ascii_lowercase) {
-        Cow::Borrowed(end_tag_name)
-    } else {
-        end_tag_name.to_ascii_lowercase().into()
-    };
-    if *start_tag_name == end_tag_name {
+    let end_tag_name = Text::new(&state.wiki_text.as_ref()[position_before_end_tag_name..position_after_end_tag_name].to_ascii_lowercase());
+    if start_tag_name == end_tag_name {
         let nodes = if position_after_start_tag < position_before_end_tag {
             vec![Node::Text {
                 end: position_before_end_tag,
                 start: position_after_start_tag,
-                value: &state.wiki_text[position_after_start_tag..position_before_end_tag],
+                value: Text::new(&state.wiki_text.as_ref()[position_after_start_tag..position_before_end_tag]),
             }]
         } else {
             vec![]

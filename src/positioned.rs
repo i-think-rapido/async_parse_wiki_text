@@ -7,7 +7,7 @@ use crate::{Node, Positioned};
 macro_rules! impl_positioned {
     ($type:tt) => {
         use crate::$type;
-        impl<'a> Positioned for $type<'a> {
+        impl<'a> Positioned for $type {
             fn end(&self) -> usize {
                 self.end
             }
@@ -26,7 +26,7 @@ impl_positioned!(TableCaption);
 impl_positioned!(TableCell);
 impl_positioned!(TableRow);
 
-impl<'a> Positioned for Node<'a> {
+impl Positioned for Node {
     fn end(&self) -> usize {
         match *self {
             Node::Bold { end, .. } => end,

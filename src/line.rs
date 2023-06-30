@@ -7,7 +7,7 @@ use crate::{Node, Warning, WarningMessage};
 use crate::state::OpenNodeType;
 use crate::state::OpenNode;
 
-pub async fn parse_beginning_of_line(state: &mut State<'_>, line_start_position: Option<usize>) {
+pub async fn parse_beginning_of_line(state: &mut State, line_start_position: Option<usize>) {
     let mut has_line_break = false;
     'a: loop {
         match state.get_byte(state.scan_position).await {
@@ -137,7 +137,7 @@ pub async fn parse_beginning_of_line(state: &mut State<'_>, line_start_position:
     }
 }
 
-pub async fn parse_end_of_line(state: &mut State<'_>) {
+pub async fn parse_end_of_line(state: &mut State) {
     match state.stack.last() {
         None => {
             let position = state.scan_position;
@@ -203,7 +203,7 @@ pub async fn parse_end_of_line(state: &mut State<'_>) {
     }
 }
 
-async fn parse_preformatted_end_of_line(state: &mut State<'_>) {
+async fn parse_preformatted_end_of_line(state: &mut State) {
     if state.get_byte(state.scan_position + 1).await == Some(b' ') {
         let mut position = state.scan_position + 2;
         loop {
