@@ -4,8 +4,8 @@ authors = ["Romeo Disca <romeo.disca@gmail.com>", "Fredrik Portström <https://p
 description = "Parse wiki text from Mediawiki into a tree of elements"
 license-file = "LICENSE"
 readme = "readme.md"
-repository = "https://github.com/portstrom/parse_wiki_text"
-version = "0.2.0"
+repository = "https://github.com/i-think-rapido/async_parse_wiki_text"
+version = "0.2.1"
 edition = "2021"
 
 [dependencies]
