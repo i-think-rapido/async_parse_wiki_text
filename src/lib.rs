@@ -126,6 +126,7 @@ mod state;
 mod table;
 mod tag;
 mod template;
+mod text;
 mod trie;
 mod warning;
 
