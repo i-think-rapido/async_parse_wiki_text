@@ -77,6 +77,5 @@ pub fn parse_redirect(state: &mut ::State, configuration: &::Configuration, star
                 start: start_position,
             });
         }
-        return;
     }
 }

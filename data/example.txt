@@ -1,0 +1,131 @@
+Last login: Fri Jul 14 14:37:22 on console
+(base) ➜  ~ cd Work/rust/
+(base) ➜  rust mkdir wiki
+(base) ➜  rust git clone git@github.com:i-think-rapido/async_parse_wiki_text.git
+Cloning into 'async_parse_wiki_text'...
+remote: Enumerating objects: 141, done.
+remote: Counting objects: 100% (141/141), done.
+remote: Compressing objects: 100% (49/49), done.
+remote: Total 141 (delta 93), reused 136 (delta 88), pack-reused 0
+Receiving objects: 100% (141/141), 100.86 KiB | 546.00 KiB/s, done.
+Resolving deltas: 100% (93/93), done.
+(base) ➜  rust git clone git@github.com:thinkrapido/wiki-get-links.git
+Cloning into 'wiki-get-links'...
+remote: Enumerating objects: 25, done.
+remote: Counting objects: 100% (25/25), done.
+remote: Compressing objects: 100% (12/12), done.
+remote: Total 25 (delta 8), reused 23 (delta 6), pack-reused 0
+Receiving objects: 100% (25/25), done.
+Resolving deltas: 100% (8/8), done.
+(base) ➜  rust cd wiki-get-links
+(base) ➜  wiki-get-links git:(main) ll
+total 8
+-rw-r--r--  1 jbc  staff   378B Jul 14 14:39 Cargo.toml
+drwxr-xr-x  3 jbc  staff    96B Jul 14 14:39 examples
+drwxr-xr-x  3 jbc  staff    96B Jul 14 14:39 src
+(base) ➜  wiki-get-links git:(main) cd ..
+(base) ➜  rust ll
+total 1496
+drwxr-xr-x  22 jbc  staff   704B Oct 23  2022 Marlin
+drwxr-xr-x   4 jbc  staff   128B Apr 29 22:43 arrow
+-rw-r--r--   1 jbc  staff    88B Jun 30  2021 async-live-project.code-workspace
+drwxr-xr-x   9 jbc  staff   288B Sep 28  2022 async-runner
+-rw-r--r--   1 jbc  staff   107B May 18 00:08 async-runner.code-workspace
+drwxr-xr-x   8 jbc  staff   256B May 17 15:52 async-runner2
+drwxr-xr-x  10 jbc  staff   320B Jul 14 14:39 async_parse_wiki_text
+drwxr-xr-x  11 jbc  staff   352B Mar  9  2022 backblaze-b2-rs
+drwxr-xr-x  13 jbc  staff   416B Feb 12 21:32 bbb2
+drwxr-xr-x   9 jbc  staff   288B Oct 27  2022 cons
+drwxr-xr-x   6 jbc  staff   192B Nov 25  2022 egui
+drwxr-xr-x   4 jbc  staff   128B Apr  1 06:35 extism
+drwxr-xr-x   6 jbc  staff   192B Apr 21 15:11 fluvio
+drwxr-xr-x   3 jbc  staff    96B Feb  1 03:38 fp
+-rw-r--r--   1 jbc  staff   739K Nov 29  2021 get-platformio.py
+drwxr-xr-x  10 jbc  staff   320B Mar  9  2022 hangman
+drwxr-xr-x   4 jbc  staff   128B Feb 12 21:42 kcl
+drwxr-xr-x   3 jbc  staff    96B Apr 22 20:29 kotlin
+drwxr-xr-x   3 jbc  staff    96B Oct  8  2022 packt
+drwxr-xr-x  28 jbc  staff   896B Mar  9  2022 rdedup
+drwxr-xr-x   3 jbc  staff    96B Jun 29 23:01 ref
+drwxr-xr-x   3 jbc  staff    96B May 31 17:03 rust-community
+drwxr-xr-x  10 jbc  staff   320B Jul  7 20:51 rust-parallel-runner
+drwxr-xr-x   8 jbc  staff   256B Jan  5  2022 simple-stock-tracker-cli-sync
+drwxr-xr-x   9 jbc  staff   288B Feb 23  2022 system-state
+drwxr-xr-x   8 jbc  staff   256B Oct  4  2022 timeseries
+drwxr-xr-x   8 jbc  staff   256B Jun 10 21:11 timeseries2
+drwxr-xr-x   3 jbc  staff    96B Jun  8 01:20 wasm
+drwxr-xr-x   2 jbc  staff    64B Jul 14 14:39 wiki
+drwxr-xr-x   7 jbc  staff   224B Jul 14 14:39 wiki-get-links
+(base) ➜  rust mv async_parse_wiki_text wiki-get-links wiki
+(base) ➜  rust cd wiki
+(base) ➜  wiki cd async_parse_wiki_text
+(base) ➜  async_parse_wiki_text git:(main) mkdir data
+(base) ➜  async_parse_wiki_text git:(main) cd data
+(base) ➜  data git:(main) cat > example.txt
+{{Short description|2008 superhero film by Christopher Nolan}}
+{{About|the 2008 film}}
+{{Featured article}}
+{{Short description|2008 superhero film by Christopher Nolan}}
+{{About|the 2008 film}}
+{{Featured article}}
+{{pp-semi-indef}}
+{{pp-move-indef}}
+{{Use American English|date=July 2020}}
+{{Use list-defined references|date=April 2023}}
+{{Use mdy dates|date=April 2019}}
+{{Infobox film
+| name           = The Dark Knight
+| image          = The Dark Knight (2008 film).jpg
+| caption        = Theatrical release poster
+| director       = [[Christopher Nolan]]
+| producer       = {{Plainlist|
+* [[Emma Thomas]]
+* [[Charles Roven]]
+* Christopher Nolan
+}}
+| screenplay     = {{Plainlist|
+* [[Jonathan Nolan]]
+* Christopher Nolan
+}}
+| story          = {{Plainlist|
+* Christopher Nolan
+* [[David S. Goyer]]
+}}
+| based_on       = {{Based on|Characters appearing in comic books published|[[DC Comics]]}}<!-- Full credit in the film: "Based upon characters appearing in comic books published by DC Comics" -->
+| starring       = {{Plainlist|
+* [[Christian Bale]]
+* [[Michael Caine]]
+* [[Heath Ledger]]
+* [[Gary Oldman]]
+* [[Aaron Eckhart]]
+* [[Maggie Gyllenhaal]]
+* [[Morgan Freeman]]
+<!-- These actors are listed as they are on the poster. Please, do not add anyone else. Thank you. -->
+}}
+| music          = {{Plainlist|
+* [[Hans Zimmer]]
+* [[James Newton Howard]]
+}}
+| cinematography = [[Wally Pfister]]
+| editing        = [[Lee Smith (film editor)|Lee Smith]]
+| production_companies = {{Plainlist|
+* [[Warner Bros. Pictures]]
+* [[Legendary Pictures]]
+* [[Syncopy Inc.|Syncopy]]{{efn|[[Warner Bros. Pictures]] and [[Legendary Pictures]] serve as co-financiers and co-production companies for ''The Dark Knight'', while [[Syncopy Inc.|Syncopy]] is credited as the production company.<ref name="LATimes5050deal"/><ref name="BFICast"/>}}
+}}
+| distributor    = Warner Bros. Pictures
+| released       = {{Film date|2008|7|14|New York City|2008|7|18|United States|2008|7|25|United Kingdom}}
+| runtime        = 152 minutes
+| country        = {{Plainlist|
+* United States
+* United Kingdom{{efn|''The Dark Knight'' is considered a co-production of the United States and United Kingdom.<ref name="BFICast"/><ref name="LUMIERE"/>}}
+}}
+| language       = English
+| budget         = $185{{nbsp}}million
+| gross          = $1.006{{nbsp}}billion{{efn|This figure represents the cumulative total accounting for the initial worldwide 2008 gross of $997{{nbsp}}million and subsequent releases thereafter.}}
+}}
+
+~
+~
+~
+"example.txt" 60L, 2382B                                                                                                                                                                                                                    1,1           All

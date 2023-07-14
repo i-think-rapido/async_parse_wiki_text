@@ -128,10 +128,7 @@ pub fn parse_start_tag(state: &mut ::State, configuration: &::Configuration) {
     let tag_name_end_position = match state.wiki_text.as_bytes()[tag_name_start_position..]
         .iter()
         .cloned()
-        .position(|character| match character {
-            b'\t' | b'\n' | b' ' | b'/' | b'>' => true,
-            _ => false,
-        }) {
+        .position(|character| matches!(character, b'\t' | b'\n' | b' ' | b'/' | b'>')) {
         None => state.wiki_text.len(),
         Some(position) => tag_name_start_position + position,
     };
@@ -212,11 +209,11 @@ pub fn parse_start_tag(state: &mut ::State, configuration: &::Configuration) {
     }
 }
 
-fn parse_plain_text_tag<'a>(
-    state: &mut ::State<'a>,
+fn parse_plain_text_tag(
+    state: &mut ::State,
     position_before_start_tag: usize,
     position_after_start_tag: usize,
-    start_tag_name: &::Cow<'a, str>,
+    start_tag_name: &str,
 ) {
     loop {
         match state.get_byte(state.scan_position) {
@@ -234,7 +231,7 @@ fn parse_plain_text_tag<'a>(
                     state,
                     position_before_start_tag,
                     position_after_start_tag,
-                    &start_tag_name,
+                    start_tag_name,
                 ) {
                 break;
             },
@@ -244,11 +241,11 @@ fn parse_plain_text_tag<'a>(
     }
 }
 
-fn parse_plain_text_end_tag<'a>(
-    state: &mut ::State<'a>,
+fn parse_plain_text_end_tag(
+    state: &mut ::State,
     position_before_start_tag: usize,
     position_after_start_tag: usize,
-    start_tag_name: &::Cow<'a, str>,
+    start_tag_name: &str,
 ) -> bool {
     let position_before_end_tag = state.scan_position;
     let position_before_end_tag_name = state.scan_position + 2;
